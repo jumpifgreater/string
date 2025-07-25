@@ -50,6 +50,7 @@ public class CommandHelper extends ListenerAdapter {
                 var timeoutTarget = Utils.getMentionedMember(args[1], guild);
                 try {
                     int secs = Integer.parseInt(args[2]);
+                    assert timeoutTarget != null;
                     timeoutTarget.timeoutFor(Duration.ofSeconds(secs)).queue();
                     channel.sendMessage("user timed out").queue();
                 } catch (Exception ignored) {}
@@ -67,6 +68,33 @@ public class CommandHelper extends ListenerAdapter {
                     vc.getManager().putPermissionOverride(guild.getPublicRole(), null, EnumSet.of(Permission.VOICE_CONNECT)).queue();
                     channel.sendMessage("vc locked").queue();
                 }
+            }
+
+            case "unlock" -> {
+                var vc = VCManager.privateChannels.get(author.getIdLong());
+                if (vc != null) {
+                    vc.getManager().putPermissionOverride(guild.getPublicRole(), EnumSet.of(Permission.VIEW_CHANNEL, Permission.VOICE_CONNECT), null).queue();
+                    channel.sendMessage("vc unlocked").queue();
+                }
+            }
+
+            case "permit" -> {
+                if (args.length < 3) {
+                    channel.sendMessage("❌ mention a user to permit").queue();
+                    break;
+                }
+
+                var vc = VCManager.privateChannels.get(author.getIdLong());
+                if (vc == null) {
+                    channel.sendMessage("❌ you don't have a private vc").queue();
+                    break;
+                }
+
+                var permitMember = Utils.getMentionedMember(args[2], guild);
+                if (permitMember == null)
+                    break;
+
+                vc.getManager().putPermissionOverride(permitMember, EnumSet.of(Permission.VOICE_CONNECT, Permission.VIEW_CHANNEL), null).queue();
             }
 
             case "kick" -> {
