@@ -1,13 +1,18 @@
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.PermissionOverride;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
+import java.awt.*;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Map;
 
@@ -32,17 +37,130 @@ public class CommandHelper extends ListenerAdapter {
         var channel = event.getChannel().asTextChannel();
 
         switch (args[0]) {
-            case ",vc" -> handleVCCommand(args, author, guild, channel);
+            case ",help" -> {
+                var embed = new EmbedBuilder()
+                        .setTitle("Help - Commands")
+                        .setDescription("""
+                    **General Commands:**
+                    `,help` - Show this help message
+                    `,r <user> <role>` - Give role to user (Admin only)
+                    `,rr <user> <role>` - Remove role from user (Admin only)
+                    `,cr <role name>` - Create a new role (Admin only)
+                    `,rl` - List all roles in the server
+                    `,kick <user>` - Kick user from server (Admin only)
+                    `,time <user> <seconds>` - Timeout a user (Admin only)
+                    `,n` - Delete the channel and create the same one (Admin only)
+                    `,vc help` - Show voice channel commands help
+                    """)
+                        .setColor(Color.BLUE);
+                channel.sendMessageEmbeds(embed.build()).queue();
+            }
+
+            case ",vc" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("help")) {
+                    var embed = new EmbedBuilder()
+                            .setTitle("Voice Channel Commands Help")
+                            .setDescription("""
+                        `,vc lock` - Lock your private VC (deny connect for @everyone)
+                        `,vc unlock` - Unlock your private VC (allow connect for @everyone)
+                        `,vc permit <user>` - Allow a user to join your VC
+                        `,vc unpermit <user>` - Remove a user's permission to join your VC
+                        `,vc kick <user>` - Kick a user from your VC (Owner only)
+                        `,vc ban <user>` - Ban a user from your VC (Owner only)
+                        `,vc unban <user>` - Unban a user from your VC (Owner only)
+                        `,vc limit <number>` - Set user limit on your VC (0 to remove)
+                        `,vc promote <user>` - Promote user to VC co-owner (Owner only)
+                        `,vc demote <user>` - Demote a VC co-owner (Owner only)
+                        `,vc rename <new name>` - Rename your VC (Owner or co-owner)
+                        """)
+                            .setColor(Color.CYAN);
+                    channel.sendMessageEmbeds(embed.build()).queue();
+                    return;
+                }
+                handleVCCommand(args, author, guild, channel);
+            }
+
             case ",r" -> {
+                if (!author.hasPermission(Permission.ADMINISTRATOR)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
                 if (args.length < 3) return;
                 var targetMember = Utils.getMentionedMember(args[1], guild);
                 var role = guild.getRolesByName(args[2], true).stream().findFirst().orElse(null);
                 if (targetMember != null && role != null) {
                     guild.addRoleToMember(targetMember, role).queue();
                     channel.sendMessage("Role given").queue();
+                } else {
+                    channel.sendMessage("User or role not found").queue();
                 }
             }
+
+            case ",rr" -> {
+                if (!author.hasPermission(Permission.ADMINISTRATOR)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
+                if (args.length < 3) return;
+
+                var targetMember = Utils.getMentionedMember(args[1], guild);
+                var role = guild.getRolesByName(args[2], true).stream().findFirst().orElse(null);
+
+                if (targetMember != null && role != null) {
+                    guild.removeRoleFromMember(targetMember, role).queue(
+                            success -> channel.sendMessage("Role removed from user").queue(),
+                            failure -> channel.sendMessage("Failed to remove role").queue()
+                    );
+                } else {
+                    channel.sendMessage("User or role not found").queue();
+                }
+            }
+
+            case ",cr" -> {
+                if (!author.hasPermission(Permission.MANAGE_ROLES)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
+
+                if (args.length < 2) {
+                    channel.sendMessage("Usage: ,cr <role name>").queue();
+                    return;
+                }
+
+                var roleName = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+
+                guild.createRole()
+                        .setName(roleName)
+                        .setPermissions(EnumSet.noneOf(Permission.class))
+                        .queue(
+                                role -> channel.sendMessage("Role created: `" + role.getName() + "`").queue(),
+                                error -> channel.sendMessage("Failed to create role").queue()
+                        );
+            }
+
+            case ",rl" -> {
+                var roles = guild.getRoles();
+                var builder = new StringBuilder();
+
+                for (int i = roles.size() - 1; i >= 0; i--) {
+                    var role = roles.get(i);
+                    builder.append(role.getAsMention()).append(" (").append(role.getName()).append(")").append("\n");
+                }
+
+                var embed = new EmbedBuilder()
+                        .setTitle("Server Roles")
+                        .setDescription(builder.length() > 0 ? builder.toString() : "No roles found.")
+                        .setColor(Color.CYAN);
+
+                channel.sendMessageEmbeds(embed.build()).queue();
+            }
+
             case ",kick" -> {
+                if (!author.hasPermission(Permission.ADMINISTRATOR)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
+
                 if (args.length < 2) return;
                 var kickTarget = Utils.getMentionedMember(args[1], guild);
                 if (kickTarget != null) {
@@ -51,6 +169,11 @@ public class CommandHelper extends ListenerAdapter {
                 }
             }
             case ",time" -> {
+                if (!author.hasPermission(Permission.ADMINISTRATOR)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
+
                 if (args.length < 3) return;
                 var timeoutTarget = Utils.getMentionedMember(args[1], guild);
                 try {
@@ -65,6 +188,32 @@ public class CommandHelper extends ListenerAdapter {
                     channel.sendMessage("Invalid time format").queue();
                 }
             }
+
+            case ",n" -> {
+                if (!author.hasPermission(Permission.MANAGE_CHANNEL)) {
+                    channel.sendMessage("You don't have permission to use this command.").queue();
+                    return;
+                }
+
+                channel.sendMessage("Nuking channel... :bomb:").queue(success -> {
+                    String channelName = channel.getName();
+                    var server = channel.getGuild();
+                    var category = channel.getParentCategory();
+
+                    channel.delete().queue(deleted -> {
+                        var createAction = guild.createTextChannel(channelName);
+
+                        if (category != null) {
+                            createAction.setParent(category);
+                        }
+
+                        createAction.queue(newChannel -> {
+                            newChannel.sendMessage("first").queue();
+                        });
+                    });
+                });
+            }
+
         }
     }
 
@@ -250,6 +399,26 @@ public class CommandHelper extends ListenerAdapter {
                 } else {
                     channel.sendMessage("User is not a co-owner").queue();
                 }
+            }
+
+            case "rename" -> {
+                if (args.length < 3) {
+                    channel.sendMessage("Provide a new name for the VC").queue();
+                    return;
+                }
+
+                if (author.getIdLong() != getVCOwnerId(vc) &&
+                        (VCManager.vcCoOwners.getOrDefault(getVCOwnerId(vc), new ArrayList<>()).stream()
+                                .noneMatch(id -> id == author.getIdLong()))) {
+                    channel.sendMessage("Only the VC owner or a co-owner can rename the VC").queue();
+                    return;
+                }
+
+                var newName = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+                vc.getManager().setName(newName).queue(
+                        success -> channel.sendMessage("VC renamed to **" + newName + "**").queue(),
+                        failure -> channel.sendMessage("Failed to rename VC").queue()
+                );
             }
         }
     }

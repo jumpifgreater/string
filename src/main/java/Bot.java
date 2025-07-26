@@ -6,7 +6,7 @@ import net.dv8tion.jda.internal.handle.ApplicationCommandPermissionsUpdateHandle
 
 public class Bot {
     public static void main(String[] args) {
-        JDABuilder.createDefault("MTM5ODM3NTc5MDc0MzM5MjI2Ng.GFCvNR.2q7Ofpqp8NPFuHWTW3F_Q9wfW2Zphwt5uuDRYg", GatewayIntent.GUILD_MESSAGES,
+        JDABuilder.createDefault("MTM5ODM3NTc5MDc0MzM5MjI2Ng.G6yfhr.RZyV5CqKX03eknEmRwrJRW9OesB99kUHKykRT0", GatewayIntent.GUILD_MESSAGES,
                 GatewayIntent.MESSAGE_CONTENT,
                 GatewayIntent.GUILD_MEMBERS,
                 GatewayIntent.GUILD_VOICE_STATES).addEventListeners(new VCManager(), new CommandHelper()).build();
