@@ -395,7 +395,7 @@ public class CommandHelper extends ListenerAdapter {
                     vc.getManager().removePermissionOverride(demoted).queue(
                             success -> channel.sendMessage("User demoted from VC co-owner").queue(),
                             failure -> channel.sendMessage("Failed to demote user").queue()
-                    );
+                    ); // bug
                 } else {
                     channel.sendMessage("User is not a co-owner").queue();
                 }
