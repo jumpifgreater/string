@@ -9,6 +9,6 @@ public class Bot {
         JDABuilder.createDefault("token", GatewayIntent.GUILD_MESSAGES,
                 GatewayIntent.MESSAGE_CONTENT,
                 GatewayIntent.GUILD_MEMBERS,
-                GatewayIntent.GUILD_VOICE_STATES).addEventListeners(new VCManager(), new CommandHelper()).build(); // bug
+                GatewayIntent.GUILD_VOICE_STATES).addEventListeners(new VCManager(), new CommandHelper()).build(); // buga
     }
 }
